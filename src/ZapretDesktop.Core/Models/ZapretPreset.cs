@@ -12,21 +12,27 @@ public class ZapretPreset
         {
             new ZapretPreset
             {
-                Name = "General + YouTube + Discord",
-                Description = "Общий обход для сайтов, YouTube и Discord",
-                Arguments = "--wf-l3=ipv4,ipv6 --wf-tcp=80,443 --hostlist=\"../lists/list-general.txt\" --hostlist=\"../lists/list-general-user.txt\" --dpi-desync=fake,split2 --dpi-desync-fooling=md5sig"
+                Name = "Оптимальный (YouTube + Discord + Telegram)",
+                Description = "Обход блокировок по доменам. Прямой трафик Telegram не перехватывается и не ломается.",
+                Arguments = "--wf-l3=ipv4,ipv6 --wf-tcp=80,443,50000-65535 --wf-udp=443,50000-65535 " +
+                            "--filter-l7=http,tls --hostlist=\"{LISTS}\\list-general.txt\" --hostlist=\"{LISTS}\\list-general-user.txt\" " +
+                            "--dpi-desync=fake,split2 --dpi-desync-cutoff=n4 --dpi-desync-repeats=6 --dpi-desync-fooling=md5sig"
             },
             new ZapretPreset
             {
-                Name = "Telegram Bypass",
-                Description = "Обход голосовых серверов и медиа Telegram",
-                Arguments = "--wf-l3=ipv4,ipv6 --wf-tcp=80,443,5222,5223,5228 --hostlist=\"../lists/list-general.txt\" --dpi-desync=fake,disorder2 --dpi-desync-repeats=4"
+                Name = "Альтернативный (Fake + Disorder2)",
+                Description = "Для провайдеров с жестким DPI на YouTube и Discord (без вмешательства в Telegram)",
+                Arguments = "--wf-l3=ipv4,ipv6 --wf-tcp=80,443,50000-65535 --wf-udp=443,50000-65535 " +
+                            "--filter-l7=http,tls --hostlist=\"{LISTS}\\list-general.txt\" --hostlist=\"{LISTS}\\list-general-user.txt\" " +
+                            "--dpi-desync=fake,disorder2 --dpi-desync-cutoff=n4 --dpi-desync-repeats=6 --dpi-desync-fooling=md5sig"
             },
             new ZapretPreset
             {
-                Name = "Максимальный (Всё включено)",
-                Description = "Комбинированный пресет под все сервисы и пользовательские списки",
-                Arguments = "--wf-l3=ipv4,ipv6 --wf-tcp=80,443,5222-5228 --hostlist=\"../lists/list-general.txt\" --hostlist=\"../lists/list-general-user.txt\" --dpi-desync=fake,split2 --dpi-desync-repeats=6 --dpi-desync-fooling=md5sig"
+                Name = "Telegram IP Desync (Только если IP заблокированы)",
+                Description = "Использовать ТОЛЬКО если провайдер полностью блокирует IP-адреса Telegram (DC1-DC5)",
+                Arguments = "--wf-l3=ipv4 --wf-tcp=80,443,5222,5223 " +
+                            "--ipset=\"{LISTS}\\ipset-telegram.txt\" " +
+                            "--dpi-desync=split2 --dpi-desync-cutoff=n1"
             }
         };
     }
