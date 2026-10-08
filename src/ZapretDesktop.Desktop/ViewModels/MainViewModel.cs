@@ -1,8 +1,8 @@
 using System.Collections.ObjectModel;
-using System.IO;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using ZapretDesktop.Core;
+using ZapretDesktop.Core.Engines;
 using ZapretDesktop.Core.Models;
 using ZapretDesktop.Core.Services;
 
@@ -10,155 +10,88 @@ namespace ZapretDesktop.Desktop.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    private readonly ProcessManager _processManager;
+    private readonly IZapretEngine _engine;
     private readonly ListManager _listManager;
-    private readonly PresetManager _presetManager;
-    private readonly AutoStrategyTester _autoStrategyTester;
 
     [ObservableProperty]
     private bool _isRunning;
 
     [ObservableProperty]
-    private bool _isAutoTesting;
-
-    [ObservableProperty]
     private string _statusText = "Служба остановлена";
 
     [ObservableProperty]
-    private string _logs = string.Empty;
+    private ObservableCollection<ZapretPreset> _presets = new();
 
     [ObservableProperty]
-    private ZapretConfig _config = new();
+    private ZapretPreset? _selectedPreset;
 
     [ObservableProperty]
-    private Preset? _selectedPreset;
-
-    public ObservableCollection<string> AvailableLists { get; } = [];
-    public ObservableCollection<string> SelectedLists { get; } = [];
-    public ObservableCollection<Preset> Presets { get; } = [];
+    private string _userListContent = string.Empty;
 
     public MainViewModel()
     {
-        _processManager = new ProcessManager();
+        _engine = ZapretEngineFactory.Create();
         _listManager = new ListManager();
-        _presetManager = new PresetManager();
-        _autoStrategyTester = new AutoStrategyTester(_processManager);
 
-        _processManager.LogReceived += OnLogReceived;
-        _processManager.ProcessExited += OnProcessExited;
-        _autoStrategyTester.TestProgressLog += OnLogReceived;
+        Presets = new ObservableCollection<ZapretPreset>(ZapretPreset.GetDefaultPresets());
+        SelectedPreset = Presets.FirstOrDefault();
 
-        _ = InitializeAsync();
-    }
-
-    private async Task InitializeAsync()
-    {
-        RefreshLists();
-        var loadedPresets = await _presetManager.LoadPresetsAsync();
-        
-        App.Current.Dispatcher.Invoke(() =>
-        {
-            Presets.Clear();
-            foreach (var p in loadedPresets) Presets.Add(p);
-            SelectedPreset = Presets.FirstOrDefault();
-        });
+        _ = LoadUserListAsync();
     }
 
     [RelayCommand]
-    private void ToggleService()
+    private async Task ToggleServiceAsync()
     {
         if (IsRunning)
         {
-            _processManager.Stop();
+            _engine.Stop();
             IsRunning = false;
             StatusText = "Служба остановлена";
+            return;
         }
-        else
+
+        if (SelectedPreset == null)
         {
-            string listsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "lists");
-            Config.SelectedLists = SelectedLists.ToList();
+            MessageBox.Show("Выберите пресет перед запуском.", "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
-            string args = SelectedPreset != null 
-                ? SelectedPreset.Arguments 
-                : Config.BuildCommandLine(listsDir);
-
-            if (_processManager.Start(args))
+        try
+        {
+            if (!_engine.IsInstalled)
             {
-                IsRunning = true;
-                StatusText = $"Запущено ({SelectedPreset?.Name ?? "Кастомный конфиг"})";
+                StatusText = "Загрузка winws...";
+                await _engine.EnsureInstalledAsync();
             }
-            else
-            {
-                StatusText = "Ошибка запуска winws.exe";
-            }
+
+            _engine.Start(SelectedPreset.Arguments);
+            IsRunning = true;
+            StatusText = $"Запущено: {SelectedPreset.Name}";
         }
-    }
-
-    [RelayCommand]
-    private async Task RunAutoTestAsync()
-    {
-        if (IsAutoTesting || IsRunning) return;
-
-        IsAutoTesting = true;
-        StatusText = "Тестирование стратегий...";
-
-        var winningPreset = await _autoStrategyTester.TestStrategiesAsync(Presets);
-
-        if (winningPreset != null)
-        {
-            SelectedPreset = winningPreset;
-            StatusText = $"Найдена стратегия: {winningPreset.Name}";
-            ToggleService();
-        }
-        else
-        {
-            StatusText = "Ни одна стратегия не подошла";
-        }
-
-        IsAutoTesting = false;
-    }
-
-    [RelayCommand]
-    private async Task AddCustomListAsync()
-    {
-        var openFileDialog = new Microsoft.Win32.OpenFileDialog
-        {
-            Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
-            Title = "Выберите файл списка доменов"
-        };
-
-        if (openFileDialog.ShowDialog() == true)
-        {
-            string fileName = Path.GetFileName(openFileDialog.FileName);
-            var lines = await File.ReadAllLinesAsync(openFileDialog.FileName);
-            await _listManager.AddCustomListAsync(fileName, lines);
-            RefreshLists();
-        }
-    }
-
-    private void RefreshLists()
-    {
-        AvailableLists.Clear();
-        foreach (var list in _listManager.GetAvailableLists())
-        {
-            AvailableLists.Add(list);
-        }
-    }
-
-    private void OnLogReceived(string message)
-    {
-        App.Current.Dispatcher.Invoke(() =>
-        {
-            Logs += $"[{DateTime.Now:HH:mm:ss}] {message}\n";
-        });
-    }
-
-    private void OnProcessExited(int exitCode)
-    {
-        App.Current.Dispatcher.Invoke(() =>
+        catch (Exception ex)
         {
             IsRunning = false;
-            StatusText = $"Служба завершилась (код: {exitCode})";
-        });
+            StatusText = "Ошибка запуска";
+            MessageBox.Show($"Не удалось запустить службу: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveUserListAsync()
+    {
+        try
+        {
+            await _listManager.SaveListAsync("list-general-user.txt", UserListContent);
+            MessageBox.Show("Список 'list-general-user.txt' сохранён!", "Успешно", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Ошибка сохранения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task LoadUserListAsync()
+    {
+        UserListContent = await _listManager.ReadListAsync("list-general-user.txt");
     }
 }

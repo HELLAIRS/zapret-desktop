@@ -2,53 +2,25 @@ namespace ZapretDesktop.Core.Services;
 
 public class ListManager
 {
-    private readonly string _listsDirectory;
+    private readonly string _listsDir;
 
-    public ListManager(string? customListsPath = null)
+    public ListManager()
     {
-        _listsDirectory = customListsPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "lists");
-        EnsureDirectoryExists();
+        _listsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lists");
+        Directory.CreateDirectory(_listsDir);
     }
 
-    public IEnumerable<string> GetAvailableLists()
+    public async Task<string> ReadListAsync(string fileName)
     {
-        EnsureDirectoryExists();
-        return Directory.GetFiles(_listsDirectory, "*.txt")
-                        .Select(Path.GetFileName)
-                        .Where(name => name != null)!;
+        var filePath = Path.Combine(_listsDir, fileName);
+        if (!File.Exists(filePath)) return string.Empty;
+
+        return await File.ReadAllTextAsync(filePath);
     }
 
-    public async Task AddCustomListAsync(string fileName, IEnumerable<string> domains)
+    public async Task SaveListAsync(string fileName, string content)
     {
-        EnsureDirectoryExists();
-        if (!fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
-        {
-            fileName += ".txt";
-        }
-
-        string filePath = Path.Combine(_listsDirectory, fileName);
-        await File.WriteAllLinesAsync(filePath, domains);
-    }
-
-    public string BuildHostlistArgs(IEnumerable<string> selectedListNames)
-    {
-        var args = new List<string>();
-        foreach (var listName in selectedListNames)
-        {
-            string fullPath = Path.Combine(_listsDirectory, listName);
-            if (File.Exists(fullPath))
-            {
-                args.Add($"--hostlist=\"{fullPath}\"");
-            }
-        }
-        return string.Join(" ", args);
-    }
-
-    private void EnsureDirectoryExists()
-    {
-        if (!Directory.Exists(_listsDirectory))
-        {
-            Directory.CreateDirectory(_listsDirectory);
-        }
+        var filePath = Path.Combine(_listsDir, fileName);
+        await File.WriteAllTextAsync(filePath, content);
     }
 }

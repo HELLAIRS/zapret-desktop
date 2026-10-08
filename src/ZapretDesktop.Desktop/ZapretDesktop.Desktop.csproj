@@ -17,4 +17,10 @@
     <ProjectReference Include="..\ZapretDesktop.Core\ZapretDesktop.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+  <None Include="..\lists\**\*">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+  </ItemGroup>
+
 </Project>

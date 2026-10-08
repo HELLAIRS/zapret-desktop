@@ -3,16 +3,20 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="clr-namespace:ZapretDesktop.Desktop"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vm="clr-namespace:ZapretDesktop.Desktop.ViewModels"
     Title="Zapret Desktop"
     Width="900"
-    Height="600"
+    Height="650"
     ExtendsContentIntoTitleBar="True"
     WindowBackdropType="Mica"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
+
+    <ui:FluentWindow.DataContext>
+        <vm:MainViewModel />
+    </ui:FluentWindow.DataContext>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -20,7 +24,6 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Заголовок окна -->
         <ui:TitleBar Grid.Row="0" Title="Zapret Desktop">
             <ui:TitleBar.TrailingContent>
                 <ui:Button
@@ -31,47 +34,85 @@
             </ui:TitleBar.TrailingContent>
         </ui:TitleBar>
 
-        <!-- Основной контент -->
-        <Grid Grid.Row="1" Margin="20">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <StackPanel.Resources>
-                    <Style TargetType="FrameworkElement">
-                        <Setter Property="Margin" Value="0,0,0,12" />
-                    </Style>
-                </StackPanel.Resources>
-
-                <ui:TextBlock
-                    FontTypography="Title"
+        <TabControl Grid.Row="1" Margin="12,0,12,12">
+            <!-- Вкладка 1: Главная -->
+            <TabItem Header="Главная">
+                <StackPanel
+                    Width="450"
+                    Margin="20"
                     HorizontalAlignment="Center"
-                    Text="Zapret Desktop" />
-
-                <ui:TextBlock
-                    Appearance="Secondary"
-                    HorizontalAlignment="Center"
-                    Text="Управление службой обхода блокировок" />
-
-                <ui:CardControl Width="400">
-                    <ui:CardControl.Header>
-                        <StackPanel>
-                            <ui:TextBlock FontTypography="BodyStrong" Text="Статус службы" />
-                            <ui:TextBlock Appearance="Secondary" Text="Запустить или остановить zapret" />
-                        </StackPanel>
-                    </ui:CardControl.Header>
-                    <ui:ToggleSwitch Content="Включено" />
-                </ui:CardControl>
-
-                <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                    VerticalAlignment="Center">
                     <StackPanel.Resources>
                         <Style TargetType="FrameworkElement">
-                            <Setter Property="Margin" Value="6,0,6,0" />
+                            <Setter Property="Margin" Value="0,0,0,14" />
                         </Style>
                     </StackPanel.Resources>
 
-                    <ui:Button Appearance="Primary" Content="Запустить" />
-                    <ui:Button Content="Остановить" />
-                    <ui:Button Content="Настройки" Icon="{ui:SymbolIcon Settings24}" />
+                    <ui:TextBlock
+                        FontTypography="Title"
+                        HorizontalAlignment="Center"
+                        Text="Zapret Desktop" />
+
+                    <ui:CardControl>
+                        <ui:CardControl.Header>
+                            <StackPanel>
+                                <ui:TextBlock FontTypography="BodyStrong" Text="Статус службы" />
+                                <ui:TextBlock Appearance="Secondary" Text="{Binding StatusText}" />
+                            </StackPanel>
+                        </ui:CardControl.Header>
+                        <ui:ToggleSwitch Command="{Binding ToggleServiceCommand}" IsChecked="{Binding IsRunning, Mode=OneWay}" />
+                    </ui:CardControl>
+
+                    <ui:TextBlock FontTypography="BodyStrong" Text="Выберите пресет:" />
+
+                    <ComboBox
+                        DisplayMemberPath="Name"
+                        ItemsSource="{Binding Presets}"
+                        SelectedItem="{Binding SelectedPreset}" />
+
+                    <ui:TextBlock
+                        Appearance="Secondary"
+                        Text="{Binding SelectedPreset.Description}"
+                        TextWrapping="Wrap" />
+
+                    <ui:Button
+                        Appearance="Primary"
+                        Command="{Binding ToggleServiceCommand}"
+                        Content="{Binding IsRunning, Converter={StaticResource BooleanToStopStartConverter}, FallbackValue='Запустить'}"
+                        HorizontalAlignment="Stretch" />
                 </StackPanel>
-            </StackPanel>
-        </Grid>
+            </TabItem>
+
+            <!-- Вкладка 2: Свои сайты -->
+            <TabItem Header="Свои сайты">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ui:TextBlock
+                        Grid.Row="0"
+                        Margin="0,0,0,8"
+                        Appearance="Secondary"
+                        Text="Добавьте домены (по одного на строку) в пользовательский список list-general-user.txt:" />
+
+                    <TextBox
+                        Grid.Row="1"
+                        AcceptsReturn="True"
+                        Text="{Binding UserListContent, UpdateSourceTrigger=PropertyChanged}"
+                        VerticalScrollBarVisibility="Auto" />
+
+                    <ui:Button
+                        Grid.Row="2"
+                        Margin="0,12,0,0"
+                        Appearance="Primary"
+                        Command="{Binding SaveUserListCommand}"
+                        Content="Сохранить список"
+                        HorizontalAlignment="Right" />
+                </Grid>
+            </TabItem>
+        </TabControl>
     </Grid>
 </ui:FluentWindow>

@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.Globalization;
+using System.Windows.Data;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -11,7 +12,7 @@ public partial class MainWindow : FluentWindow
         InitializeComponent();
     }
 
-    private void OnToggleThemeClick(object sender, RoutedEventArgs e)
+    private void OnToggleThemeClick(object sender, object e)
     {
         var currentTheme = ApplicationThemeManager.GetAppTheme();
         var newTheme = currentTheme == ApplicationTheme.Dark 
@@ -19,5 +20,18 @@ public partial class MainWindow : FluentWindow
             : ApplicationTheme.Dark;
 
         ApplicationThemeManager.Apply(newTheme);
+    }
+}
+
+public class BooleanToStopStartConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value is bool isRunning && isRunning ? "Остановить" : "Запустить";
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
     }
 }
